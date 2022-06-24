@@ -1,0 +1,209 @@
+@extends('template.template')
+
+@section('konten')
+
+
+@push('custom-scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.26.0/axios.min.js"
+integrity="sha512-bPh3uwgU5qEMipS/VOmRqynnMXGGSRv+72H/N260MQeXZIK4PG48401Bsby9Nq5P5fz7hy5UGNmC/W1Z51h2GQ=="
+crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="SB-Mid-client-HmYTNhht1de678IW"></script>
+    <script>
+
+        $(document).ready(function() {
+
+            // get data transaksi by id
+            axios.get("{{ $baseApi }}" + 'api/get_detail_payment/{{ $id }}')
+                    .then(function(response) {
+                        // console.log();
+                        // premi_value = response.data.data.premi;
+                        var html;
+                        if (response.data.code == 200) {
+                            // console.log(response.data);
+
+                            var params = {
+                                insurance_id : response.data.data.id,
+                                total_price : response.data.data.total_bayar,
+                                name : response.data.data.nama_lengkap,
+                                email : response.data.data.email,
+                                hp : response.data.data.no_telp,
+                                diskon_id : response.data.data.diskon_id
+                            }
+
+                            // console.log(params);
+                            // call payments gateway
+                            axios.post("{{ $baseApi }}" + 'api/orders/show/', params)
+                                .then(function(response) {
+                                    // console.log();
+                                    var html;
+                                    if (response.data.code == 200) {
+                                        snap.pay(response.data.data.snapToken, {
+                                            // Optional
+                                            onSuccess: function(result) {
+                                                /* You may add your own js here, this is just example */
+                                                // document.getElementById('result-json').innerHTML += JSON.stringify(result, null, 2);
+                                                // console.log(result)
+
+                                                savedPayment(result);
+                                            },
+                                            // Optional
+                                            onPending: function(result) {
+                                                /* You may add your own js here, this is just example */
+                                                // document.getElementById('result-json').innerHTML += JSON.stringify(result, null, 2);
+                                                // console.log(result)
+
+                                                savedPayment(result);
+                                            },
+                                            // Optional
+                                            onError: function(result) {
+                                                /* You may add your own js here, this is just example */
+                                                // document.getElementById('result-json').innerHTML += JSON.stringify(result, null, 2);
+                                                console.log(result)
+                                                Swal.fire(
+                                                    'Error !',
+                                                    result,
+                                                    'error'
+                                                )
+                                            }
+                                        });
+
+                                    } else {
+                                        console.log('gagal');
+                                    }
+                                })
+                                .catch(function(error) {
+                                    console.log(error);
+                                    // $("#gagal_voucher").show()
+                                    Swal.fire(
+                                                    'Error !',
+                                                    error,
+                                                    'error'
+                                                )
+                                });
+
+
+                        } else {
+                            console.log('gagal');
+                        }
+                    })
+                    .catch(function(error) {
+                        // $("#gagal_voucher").show()
+                        console.log(error);
+                    });
+
+            });
+
+            function savedPayment(params) {
+                // update data
+                if (params.payment_type == 'credit_card') {
+                    var params_update  = {
+                            id : params.order_id,
+                            bank : params.bank,
+                            transaction_id : params.transaction_id,
+                            gross_amount : params.gross_amount,
+                            payment_type : params.payment_type,
+                            transaction_time : params.transaction_time,
+                            transaction_status : params.transaction_status,
+                            fraud_status : params.fraud_status,
+                            approval_code : params.approval_code,
+                            masked_card : params.masked_card,
+                            card_type : params.card_type,
+                            finish_redirect_url : params.finish_redirect_url,
+                    }
+                }else if(params.payment_type == 'bank_transfer'){
+
+                    var va_numbers_result;
+                    if (params.permata_va_number != '') {
+                        va_numbers_result = [
+                            {
+                                "bank": "permata",
+                                "va_number": params.permata_va_number
+                            }
+                        ]
+                    }else{
+                        va_numbers_result = params.va_numbers;
+                    }
+
+                    var params_update  = {
+                            id : params.order_id,
+                            transaction_id : params.transaction_id,
+                            gross_amount : params.gross_amount,
+                            payment_type : params.payment_type,
+                            transaction_time : params.transaction_time,
+                            transaction_status : params.transaction_status,
+                            fraud_status : params.fraud_status,
+                            va_numbers : va_numbers_result,
+                            pdf_url : params.pdf_url,
+                            finish_redirect_url : params.finish_redirect_url,
+                    }
+                }else if(params.payment_type == 'echannel'){
+                    var params_update  = {
+                            id : params.order_id,
+                            transaction_id : params.transaction_id,
+                            gross_amount : params.gross_amount,
+                            payment_type : params.payment_type,
+                            transaction_time : params.transaction_time,
+                            transaction_status : params.transaction_status,
+                            fraud_status : params.fraud_status,
+                            bill_key : params.bill_key,
+                            biller_code : params.biller_code,
+                            pdf_url : params.pdf_url,
+                            finish_redirect_url : params.finish_redirect_url,
+                    }
+                }else if(params.payment_type == 'gopay'){
+                    var params_update  = {
+                            id : params.order_id,
+                            transaction_id : params.transaction_id,
+                            gross_amount : params.gross_amount,
+                            payment_type : params.payment_type,
+                            transaction_time : params.transaction_time,
+                            transaction_status : params.transaction_status,
+                            fraud_status : params.fraud_status,
+                            finish_redirect_url : params.finish_redirect_url,
+                    }
+                }else if(params.payment_type == 'qris'){
+                    var params_update  = {
+                            id : params.order_id,
+                            transaction_id : params.transaction_id,
+                            gross_amount : params.gross_amount,
+                            payment_type : params.payment_type,
+                            transaction_time : params.transaction_time,
+                            transaction_status : params.transaction_status,
+                            fraud_status : params.fraud_status,
+                            finish_redirect_url : params.finish_redirect_url,
+                    }
+                }
+
+                // console.log(params_update);
+
+                axios.post("{{ $baseApi }}" + 'api/orders/update/', params_update)
+                    .then(function(response) {
+                        if (response.data.code == 200) {
+                            Swal.fire(
+                                'Success',
+                                response.data.msg,
+                                'success'
+                            ).then((result) => {
+                                window.location.replace("/");
+                            })
+                        } else {
+
+                            console.log(response.data);
+                            Swal.fire(
+                                'Error !',
+                                'Data Gagal dikirim ! ' + response.data.data,
+                                'error'
+                            )
+                        }
+                    })
+                    .catch(function(error) {
+                        // $("#gagal_voucher").show()
+                        console.log(error);
+                    });
+            }
+
+
+    </script>
+@endpush
+@endsection
